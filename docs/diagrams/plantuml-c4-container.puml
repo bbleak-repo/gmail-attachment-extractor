@@ -1,0 +1,42 @@
+@startuml Gmail Attachment Extractor - C4 Container Diagram
+!include G:\Coding\PlantUML\libraries\C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Container Diagram - Gmail Attachment Extractor
+
+Person(user, "End User", "Gmail user extracting attachments")
+
+System_Boundary(extractor, "Gmail Attachment Extractor") {
+    Container(ui, "Google Sheet", "Google Sheets", "User interface for configuration and viewing logs")
+
+    Container(script, "Apps Script Runtime", "Google Apps Script (JavaScript)", "Main extraction logic, orchestration, and business rules")
+
+    ContainerDb(config, "Configuration Store", "Named Ranges", "Stores user settings: patterns, batch size, folder name")
+
+    ContainerDb(log, "Extraction Log", "Sheet Tab", "Records extraction history: files saved, errors, timestamps")
+
+    ContainerDb(state, "State Store", "ScriptProperties", "Tracks extraction progress for resume capability")
+}
+
+System_Ext(gmail, "Gmail API", "Google's email service API for searching and reading emails")
+System_Ext(drive, "Drive API", "Google's file storage API for creating folders and uploading files")
+System_Ext(lockservice, "LockService", "Google's concurrency control service")
+
+Rel(user, ui, "Opens, configures, triggers extraction", "HTTPS")
+Rel(user, log, "Views extraction results", "HTTPS")
+
+Rel(ui, script, "Invokes on menu click", "onOpen(), extractAttachmentsBatch()")
+
+Rel(script, config, "Reads settings", "getRangeByName()")
+Rel(script, log, "Writes results", "appendRow()")
+Rel(script, state, "Saves/loads progress", "getProperty(), setProperty()")
+
+Rel(script, gmail, "Searches threads, reads attachments", "GmailApp.search(), getAttachments()")
+Rel(script, drive, "Creates folders, saves files", "DriveApp.createFolder(), createFile()")
+Rel(script, lockservice, "Acquires/releases locks", "getScriptLock(), tryLock()")
+
+Rel(config, ui, "Displayed in tab", "Configuration tab")
+Rel(log, ui, "Displayed in tab", "Extraction Log tab")
+
+@enduml

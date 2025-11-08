@@ -1,0 +1,146 @@
+@startuml Gmail Attachment Extractor - Sequence Diagram
+!theme cerulean-outline
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+title Gmail Attachment Extractor - Main Sequence Flow
+
+actor User
+participant "Google Sheet" as Sheet
+participant "Apps Script\nMain" as Main
+participant "Configuration\nReader" as Config
+participant "Gmail\nSearch" as Gmail
+participant "Batch\nProcessor" as Processor
+participant "Drive\nWriter" as Drive
+participant "Logger" as Log
+
+== Initialization ==
+
+User -> Sheet: Open sheet &\nclick "Extract Attachments"
+activate Sheet
+
+Sheet -> Main: extractAttachmentsBatch()
+activate Main
+
+Main -> Main: Check if setup needed
+note right: Check for\nConfiguration &\nLog tabs
+
+alt First Time (Tabs Missing)
+    Main -> Sheet: setupSheet()
+    activate Sheet #LightBlue
+    Sheet -> Sheet: Create Configuration tab
+    Sheet -> Sheet: Create Extraction Log tab
+    Sheet --> Main: Setup complete
+    deactivate Sheet
+    Main --> User: "Setup Complete!\nConfigure patterns"
+    deactivate Main
+    deactivate Sheet
+else Tabs Exist
+    Main -> Main: acquireExecutionLock()
+    note right: Prevents\nconcurrent runs
+
+    Main -> Main: checkSheetPrivacy()
+    note right: Warn if\npublicly shared
+
+    Main -> Config: readConfiguration()
+    activate Config
+    Config -> Sheet: Read named ranges
+    Config -> Config: Parse folder patterns
+    Config -> Config: Validate batch size
+    Config --> Main: Configuration object
+    deactivate Config
+
+    Main -> Drive: validateAndSetupDrive()
+    activate Drive
+    Drive -> Drive: Check if folder exists
+    alt Folder Missing
+        Drive -> Drive: Create "Gmail Attachments" folder
+    end
+    Drive --> Main: Drive folder ID
+    deactivate Drive
+
+    == Gmail Search ==
+
+    Main -> Gmail: getMatchingThreads(config)
+    activate Gmail
+    Gmail -> Gmail: getLabelsMatchingPatterns()
+    note right: Match wildcards:\n*inbox*, Projects/*
+
+    loop For Each Pattern
+        Gmail -> Gmail: Search Gmail API
+        Gmail -> Gmail: Filter by label
+    end
+
+    Gmail --> Main: Array of threads
+    deactivate Gmail
+
+    alt No Emails Found
+        Main --> User: "No emails found"
+        deactivate Main
+        deactivate Sheet
+    end
+
+    Main --> User: "Found X threads\nwith ~Y attachments\nContinue?"
+    User --> Main: Yes
+
+    == Batch Processing ==
+
+    Main -> Processor: processBatch(threads, config)
+    activate Processor
+
+    loop For Each Thread (up to Batch Size)
+        Processor -> Gmail: Get messages & attachments
+        activate Gmail
+        Gmail --> Processor: Messages with attachments
+        deactivate Gmail
+
+        loop For Each Message
+            loop For Each Attachment
+                Processor -> Processor: Get email labels
+                Processor -> Processor: sanitizeFilename()
+
+                Processor -> Drive: Check for duplicates
+                activate Drive
+                Drive --> Processor: Unique filename
+                deactivate Drive
+
+                Processor -> Drive: Save attachment to\nproper folder path
+                activate Drive #LightGreen
+                Drive -> Drive: Create folder structure
+                Drive -> Drive: Upload blob
+                Drive --> Processor: Success
+                deactivate Drive
+
+                Processor -> Log: logToSheet(success)
+                activate Log
+                Log -> Sheet: Append row to\nExtraction Log
+                deactivate Log
+            end
+        end
+    end
+
+    Processor --> Main: Statistics (success, warnings, errors)
+    deactivate Processor
+
+    == State Management ==
+
+    Main -> Main: Save progress to\nScriptProperties
+
+    alt More Threads Remaining
+        Main --> User: "Batch complete\nX/Y processed\nRun again to continue"
+    else All Complete
+        Main -> Main: resetExtractionState()
+        Main --> User: "Extraction complete!\nAll threads processed"
+    end
+
+    Main -> Main: releaseLock()
+    deactivate Main
+    deactivate Sheet
+
+    User -> Drive: Access extracted files
+    activate Drive
+    Drive --> User: Folder structure\nwith attachments
+    deactivate Drive
+end
+
+@enduml

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//g/Coding/PlantUML/**)",
+      "Bash(java -jar plantuml.jar:*)",
+      "Bash(java -jar:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

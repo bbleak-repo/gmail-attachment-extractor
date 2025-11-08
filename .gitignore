@@ -1,0 +1,70 @@
+# Gmail Attachment Extractor - Git Ignore
+
+# Personal screenshots and images
+*.JPG
+*.jpg
+*.PNG
+*.png
+*.gif
+
+# Temporary debug files
+*DIAGNOSTIC*.md
+*DEBUG*.md
+*TEST*.md
+LOCK-ERROR-TROUBLESHOOTING.md
+LOCK-FIX-UPDATE.md
+LOCK-104MS-DIAGNOSTIC-SUMMARY.md
+WAITLOCK-BUG-FIX-SUMMARY.md
+INBOX-SYSTEM-LABEL-FIX.md
+BUILD-COMPLETE-SUMMARY.md
+
+# Superseded diagnostic scripts
+LOCK-DIAGNOSTIC-SCRIPT.gs
+LOCK-TEST-FUNCTION.gs
+
+# Third-party analysis
+ChatGPT-PDD-Analysis.md
+
+# Old versions
+email-extraction.txt
+*.bak
+*.old
+
+# Personal configuration
+.vscode/
+.idea/
+*.sublime-*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# Temporary files
+*~
+*.swp
+*.swo
+*.tmp
+temp/
+tmp/

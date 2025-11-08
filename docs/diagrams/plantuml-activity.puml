@@ -1,0 +1,224 @@
+@startuml Gmail Attachment Extractor - Activity Diagram
+!theme cerulean-outline
+skinparam defaultTextAlignment center
+
+title Gmail Attachment Extractor - Process Flow
+
+start
+
+:User opens Google Sheet;
+:User clicks "Attachment Tools"\n→ "Extract Attachments";
+
+partition "Step 0: Auto-Setup Check" #LightBlue {
+    if (Configuration & Log\ntabs exist?) then (no)
+        :Show "First-Time Setup" dialog;
+        if (User confirms?) then (yes)
+            :Run setupSheet();
+            :Create Configuration tab;
+            :Create Extraction Log tab;
+            :Set up named ranges;
+            :Show "Setup Complete" dialog;
+            stop
+        else (no)
+            :User cancelled;
+            stop
+        endif
+    else (yes)
+        :Tabs already exist;
+    endif
+}
+
+partition "Step 1: Security & Lock" #LightGreen {
+    :Generate execution ID;
+    :Log start time;
+
+    :Attempt to acquire lock\n(tryLock with 100 retries);
+
+    if (Lock acquired?) then (no)
+        :Show "Lock Acquisition Failed" error;
+        :Log: Another extraction running;
+        stop
+    else (yes)
+        :Lock acquired successfully;
+    endif
+
+    :Check sheet privacy settings;
+
+    if (Sheet is publicly shared?) then (yes)
+        :Show privacy warning dialog;
+        if (User continues?) then (no)
+            :Release lock;
+            stop
+        endif
+    endif
+}
+
+partition "Step 2: Read Configuration" #LightYellow {
+    :Read Configuration sheet;
+    :Parse Drive Folder Name;
+    :Parse Drive Folder ID;
+    :Parse Folder Patterns;
+    :Parse Search Trash flag;
+    :Parse Batch Size (1-50);
+
+    if (Folder Patterns empty?) then (yes)
+        :Show "Extract ALL?" warning;
+        if (User confirms?) then (no)
+            :Release lock;
+            stop
+        endif
+    endif
+}
+
+partition "Step 3: Validate Drive" #LightCyan {
+    if (Drive Folder ID exists?) then (yes)
+        :Try to access folder;
+        if (Folder accessible?) then (yes)
+            :Use existing folder;
+        else (no)
+            :Create new folder;
+            :Update Folder ID in config;
+        endif
+    else (no)
+        :Create new folder;
+        :Update Folder ID in config;
+    endif
+
+    :Check Drive folder privacy;
+    if (Folder is public?) then (yes)
+        :Show privacy notice;
+        note right: Non-blocking warning
+    endif
+}
+
+partition "Step 4: Check State" #Lavender {
+    :Check ScriptProperties\nfor existing state;
+
+    if (Previous extraction\nin progress?) then (yes)
+        :Show "Resume?" dialog;
+        if (User wants to resume?) then (yes)
+            :Load last processed index;
+        else (no)
+            :Reset extraction state;
+            :Start from beginning;
+        endif
+    else (no)
+        :No previous state;
+    endif
+}
+
+partition "Step 5: Search Gmail" #LightPink {
+    :Get user labels from Gmail;
+    :Define system labels\n(INBOX, SENT, etc.);
+
+    :Match patterns against labels;
+    note right
+        Pattern matching:
+        • *inbox* → INBOX
+        • Projects/* → All under Projects
+        • *covid* → Contains "covid"
+    end note
+
+    if (Any labels matched?) then (no)
+        :Show "No emails found" error;
+        :Release lock;
+        stop
+    else (yes)
+        repeat
+            :Build Gmail search query;
+            :Search for threads with\nhas:attachment;
+            :Collect unique threads;
+        repeat while (More labels?) is (yes)
+        ->no;
+    endif
+
+    :Sort threads by date\n(newest first);
+    :Count total threads;
+    :Estimate attachment count;
+}
+
+partition "Step 6: Calculate Batch" #LightSalmon {
+    :Get last processed index\n(default: 0);
+    :Calculate end index\n(start + batch size);
+    :Clamp to total threads;
+}
+
+partition "Step 7: User Confirmation" #LightGoldenRodYellow {
+    if (Starting fresh?) then (yes)
+        :Show confirmation dialog\nwith thread/attachment counts;
+        if (User confirms?) then (no)
+            :Release lock;
+            stop
+        endif
+    endif
+}
+
+partition "Step 8: Process Batch" #LightGreen {
+    :Initialize statistics\n(success=0, warnings=0, errors=0);
+
+    repeat
+        :Get next thread;
+        :Get all messages in thread;
+        :Get thread labels;
+
+        repeat :Process message;
+            :Get attachments;
+
+            repeat :Process attachment;
+                :Get email sent date;
+                :Build filename with date\n(file_YYYY-MM-DD.ext);
+                :Sanitize filename\n(remove invalid chars);
+
+                repeat :For each label path;
+                    :Build Drive folder path\n(attachments/Label/Sublabel/...);
+                    :Create folders if needed;
+
+                    :Check for duplicate files;
+                    if (Duplicate exists?) then (yes)
+                        :Append counter\n(file_YYYY-MM-DD-2.ext);
+                    endif
+
+                    :Save attachment to Drive;
+
+                    if (Save successful?) then (yes)
+                        :stats.success++;
+                        :Log success to sheet;
+                    else (no)
+                        :stats.errors++;
+                        :Log error to sheet;
+                    endif
+                repeat while (More labels?) is (yes)
+                ->no;
+            repeat while (More attachments?) is (yes)
+            ->no;
+        repeat while (More messages?) is (yes)
+        ->no;
+    repeat while (More threads in batch?) is (yes)
+    ->no;
+}
+
+partition "Step 9: Save State" #LightSteelBlue {
+    :Save end index to\nScriptProperties;
+    :Calculate remaining threads;
+}
+
+partition "Step 10: Completion" #LightGreen {
+    if (More threads remaining?) then (yes)
+        :Show "Batch Complete" dialog\nwith progress stats;
+        note right
+            "Processed X of Y threads
+            Run again to continue"
+        end note
+    else (no)
+        :Reset extraction state;
+        :Calculate elapsed time;
+        :Show "Extraction Complete" dialog\nwith final stats;
+    endif
+}
+
+:Release execution lock;
+:Log completion;
+
+stop
+
+@enduml

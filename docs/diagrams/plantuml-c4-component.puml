@@ -1,0 +1,100 @@
+@startuml Gmail Attachment Extractor - C4 Component Diagram
+!include G:\Coding\PlantUML\libraries\C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Component Diagram - Apps Script Runtime
+
+Container(ui, "Google Sheet UI", "Google Sheets", "User interface")
+
+Container_Boundary(script, "Apps Script Runtime") {
+    Component(main, "Main Orchestrator", "extractAttachmentsBatch()", "Coordinates entire extraction flow, manages state transitions")
+
+    Component(setup, "Setup Manager", "setupSheet()", "Creates configuration and log tabs on first run")
+
+    Component(security, "Security Layer", "Functions", "Enforces privacy checks and concurrency control") {
+        Component(lock, "Lock Manager", "acquireExecutionLock()", "Prevents concurrent executions")
+        Component(privacy, "Privacy Checker", "checkSheetPrivacy()", "Validates sharing settings")
+    }
+
+    Component(config, "Configuration Reader", "readConfiguration()", "Parses and validates user settings from named ranges")
+
+    Component(search, "Gmail Search Engine", "Functions", "Finds matching emails") {
+        Component(matcher, "Pattern Matcher", "getLabelsMatchingPatterns()", "Matches wildcard patterns to labels")
+        Component(threads, "Thread Collector", "getMatchingThreads()", "Searches Gmail for threads with attachments")
+    }
+
+    Component(processor, "Batch Processor", "processBatch()", "Processes threads in configurable batches")
+
+    Component(extractor, "Attachment Extractor", "Functions", "Extracts and saves individual files") {
+        Component(sanitizer, "Filename Sanitizer", "sanitizeFilename()", "Cleans filenames for Drive compatibility")
+        Component(deduper, "Duplicate Handler", "handleDuplicates()", "Renames files to avoid overwrites")
+    }
+
+    Component(drive, "Drive Manager", "validateAndSetupDrive()", "Creates folder structure, uploads files")
+
+    Component(logger, "Log Writer", "logToSheet()", "Records extraction events to Extraction Log tab")
+
+    Component(state, "State Manager", "ScriptProperties", "Saves progress for resume capability")
+}
+
+System_Ext(gmail_api, "Gmail API", "Email service")
+System_Ext(drive_api, "Drive API", "File storage")
+System_Ext(lock_service, "LockService", "Concurrency")
+
+Rel(ui, main, "User triggers", "Menu click")
+
+Rel(main, setup, "First time only", "Check & create tabs")
+Rel(main, lock, "Before processing", "Acquire lock")
+Rel(main, privacy, "After lock", "Validate privacy")
+Rel(main, config, "Read settings", "Parse configuration")
+Rel(main, threads, "Search Gmail", "Get matching threads")
+Rel(main, processor, "Process batch", "Extract attachments")
+Rel(main, state, "Save progress", "Store index")
+
+Rel(setup, ui, "Creates tabs", "Configuration & Log")
+
+Rel(config, ui, "Reads from", "Named ranges")
+
+Rel(threads, matcher, "Uses", "Pattern matching")
+Rel(threads, gmail_api, "Searches", "GmailApp.search()")
+
+Rel(processor, extractor, "For each attachment", "Extract & save")
+Rel(processor, logger, "Records results", "Log events")
+
+Rel(extractor, sanitizer, "Clean filename", "Remove invalid chars")
+Rel(extractor, deduper, "Check duplicates", "Rename if needed")
+Rel(extractor, drive, "Save file", "Upload to folder")
+
+Rel(drive, drive_api, "Creates/uploads", "Folders & files")
+
+Rel(logger, ui, "Appends rows", "Extraction Log tab")
+
+Rel(lock, lock_service, "Controls access", "tryLock()")
+Rel(privacy, ui, "Checks settings", "getSharingAccess()")
+
+note right of main
+    Main orchestrator handles:
+    • Auto-setup detection
+    • Lock acquisition
+    • Error handling
+    • User dialogs
+    • Progress tracking
+end note
+
+note right of security
+    Security layer enforces:
+    • No concurrent runs
+    • Privacy warnings
+    • User consent
+end note
+
+note right of extractor
+    Extraction ensures:
+    • Valid filenames
+    • No overwrites
+    • Date in filename
+    • Multiple label paths
+end note
+
+@enduml

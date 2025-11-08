@@ -1,0 +1,29 @@
+@startuml Gmail Attachment Extractor - C4 Context Diagram
+!include G:\Coding\PlantUML\libraries\C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title System Context Diagram - Gmail Attachment Extractor
+
+Person(user, "End User", "Gmail user who wants to extract email attachments to Drive")
+
+System(extractor, "Gmail Attachment Extractor", "Extracts email attachments from Gmail and organizes them in Google Drive while preserving label hierarchy")
+
+System_Ext(gmail, "Gmail", "Google's email service with messages, attachments, and labels")
+System_Ext(drive, "Google Drive", "Google's file storage service for saving extracted attachments")
+System_Ext(sheets, "Google Sheets", "Spreadsheet for configuration and logging")
+System_Ext(appsscript, "Google Apps Script", "Serverless execution environment for the extractor code")
+
+Rel(user, extractor, "Configures patterns and triggers extraction", "Web UI")
+Rel(user, sheets, "Views configuration and logs", "HTTPS")
+Rel(user, drive, "Accesses extracted files", "HTTPS")
+
+Rel(extractor, gmail, "Searches emails, reads attachments", "Gmail API")
+Rel(extractor, drive, "Creates folders, saves files", "Drive API")
+Rel(extractor, sheets, "Reads configuration, writes logs", "Spreadsheet API")
+
+Rel(sheets, appsscript, "Hosts and executes", "Runtime")
+Rel(appsscript, gmail, "Authorized access", "OAuth 2.0")
+Rel(appsscript, drive, "Authorized access", "OAuth 2.0")
+
+@enduml
