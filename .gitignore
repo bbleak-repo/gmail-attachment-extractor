@@ -4,8 +4,10 @@
 *.JPG
 *.jpg
 *.PNG
-*.png
 *.gif
+
+# Allow architecture diagram PNGs
+!docs/diagrams/*.png
 
 # Temporary debug files
 *DIAGNOSTIC*.md
